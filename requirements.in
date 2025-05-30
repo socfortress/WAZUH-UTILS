@@ -1,0 +1,7 @@
+aiofiles
+fastapi
+uvicorn
+loguru
+regex
+requests
+python-multipart

@@ -1,7 +1,7 @@
 import os
 import shutil
 
-from app.schema.utils import ProvisionWorkerResponse
+from app.schema.utils import UtilsResponse
 from fastapi import APIRouter
 from fastapi import File
 from fastapi import Form
@@ -14,7 +14,7 @@ provision_utils_router = APIRouter()
 
 @provision_utils_router.post(
     "/sysmon-config",
-    response_model=ProvisionWorkerResponse,
+    response_model=UtilsResponse,
     description="Upload Sysmon configuration file for a customer",
 )
 async def upload_sysmon_config(
@@ -46,7 +46,7 @@ async def upload_sysmon_config(
 
         logger.info(f"Sysmon configuration uploaded for customer {customer_code}")
 
-        return ProvisionWorkerResponse(
+        return UtilsResponse(
             success=True,
             message=f"Sysmon configuration uploaded successfully for {customer_code}",
         )

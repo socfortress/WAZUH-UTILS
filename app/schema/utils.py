@@ -13,4 +13,3 @@ class UtilsResponse(BaseModel):
         example="Operation completed successfully",
         description="The message returned by the API",
     )
-

@@ -16,7 +16,6 @@ source wazuh_utils_env/bin/activate
 pip install -r requirements.in
 ```
 
-
 ## Run as Service
 
 Create a service and run the script as a service:

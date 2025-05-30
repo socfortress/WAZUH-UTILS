@@ -65,7 +65,7 @@ function Reload-SysmonConfig {
 }
 
 # Paths
-$sysmonPath = "C:\Program Files\socfortress\sysinternals\Sysmon64.exe"
+$sysmonPath = "C:\Program Files\SOCFortress\sysinternals\Sysmon64.exe"
 $configPath = "C:\Program Files (x86)\ossec-agent\shared\sysmon_config.xml"
 
 # Log the start time

@@ -9,10 +9,10 @@ from fastapi import HTTPException
 from fastapi import UploadFile
 from loguru import logger
 
-provision_utils_router = APIRouter()
+utils_router = APIRouter()
 
 
-@provision_utils_router.post(
+@utils_router.post(
     "/sysmon-config",
     response_model=UtilsResponse,
     description="Upload Sysmon configuration file for a customer",

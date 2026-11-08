@@ -27,11 +27,11 @@ Every write goes through file descriptors (directory opened with `O_NOFOLLOW`, t
 
 A key file that is configured but unreadable makes every route refuse with 503. It never silently falls back to "no key".
 
-CoPilot needs the same key and the sidecar's https URL in its `.env`: `WAZUH_UTILS_API_KEY`, `WAZUH_UTILS_URL=https://<master>:5003`, and, for a self-signed certificate, `WAZUH_UTILS_CA_BUNDLE`.
+CoPilot needs two values in its `.env`: the same key as `WAZUH_UTILS_API_KEY`, and `WAZUH_UTILS_URL=https://<master>:5003`. CoPilot does not verify the sidecar's self-signed certificate unless `WAZUH_UTILS_CA_BUNDLE` is set (the connection is still encrypted; the key authenticates). Because an attacker who can intercept CoPilot-to-master traffic could then capture the key, restrict port 5003 to the CoPilot host and consider pinning `WAZUH_UTILS_ALLOWED_SHA256`.
 
 ## Install / upgrade on a master
 
-Requires CoPilot with the Sysmon-health change (socfortress/CoPilot#1343) or later. That version sends the key, uses `WAZUH_UTILS_URL`, and pins the sidecar certificate.
+Requires CoPilot with the Sysmon-health change (socfortress/CoPilot#1343) or later. That version sends the key and uses `WAZUH_UTILS_URL`. New masters installed with socfortress/INSTALLER-WAZUH-MASTER get all of this automatically; the steps below are for existing masters.
 
 ```bash
 cd /opt/socfortress/integrations/WAZUH-UTILS && git pull
@@ -42,10 +42,10 @@ install -d -m 750 -o root -g wazuh /etc/socfortress
 #    value to CoPilot as WAZUH_UTILS_API_KEY.
 [ -s /etc/socfortress/wazuh-utils.key ] || ( umask 077; openssl rand -hex 32 > /etc/socfortress/wazuh-utils.key )
 
-# 2. TLS certificate whose subjectAltName is the address CoPilot uses in
-#    WAZUH_UTILS_URL. (The Wazuh API's own certificate does not carry that name,
-#    so CoPilot could not verify it.) Self-signed: copy wazuh-utils.crt to the
-#    CoPilot host and point WAZUH_UTILS_CA_BUNDLE at it.
+# 2. Self-signed TLS certificate. CoPilot does not verify it by default; giving it
+#    the address CoPilot uses in WAZUH_UTILS_URL as subjectAltName keeps the option
+#    to turn verification on later (copy wazuh-utils.crt to CoPilot and set
+#    WAZUH_UTILS_CA_BUNDLE).
 MASTER_IP=<address CoPilot connects to>
 [ -s /etc/socfortress/wazuh-utils.crt ] || openssl req -x509 -newkey rsa:3072 -sha256 -days 1825 -nodes \
   -subj "/CN=wazuh-utils" -addext "subjectAltName=IP:${MASTER_IP}" \
@@ -96,7 +96,7 @@ Also restrict port 5003 at the firewall to the CoPilot host.
 -   without the key they get 401;
 -   over plain http they get a dropped connection.
 
-1. Update CoPilot and set `WAZUH_UTILS_URL=https://<MASTER_IP>:5003`, `WAZUH_UTILS_API_KEY` and `WAZUH_UTILS_CA_BUNDLE`. CoPilot cannot reach the sidecar from this step until step 2 is done: it refuses to send the key over http, and the old sidecar does not speak https. Do the two steps back to back.
+1. Update CoPilot and set `WAZUH_UTILS_URL=https://<MASTER_IP>:5003` and `WAZUH_UTILS_API_KEY`. CoPilot cannot reach the sidecar from this step until step 2 is done: it refuses to send the key over http, and the old sidecar does not speak https. Do the two steps back to back.
 2. Restart this service with the new unit.
 
 **Behaviour change.** `/sysmon-config` no longer creates a missing `Windows_<code>` folder; it answers 404. The folder exists for every group the manager knows, so a 404 means the code does not match a group. Previously the file silently went to a folder no agent read.

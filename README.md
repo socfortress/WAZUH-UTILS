@@ -111,3 +111,5 @@ pip install -r requirements.in -r requirements-dev.in
 python -m pytest            # tests/ use a temporary shared dir, no Wazuh needed
 pre-commit run --all-files
 ```
+
+CI also deploys every branch the way production does: the **Installer systemd test** workflow (`.github/workflows/installer-systemd.yml`). It runs socfortress/INSTALLER-WAZUH-MASTER's own sidecar setup and checks on real systemd (Ubuntu 22.04 and 24.04, Debian 12): the service runs as wazuh, the key is delivered, file modes are right, requests get 401/200/400/404 as expected, a re-run keeps the key, and the key never reaches a log. The installer repo is private, so the job checks it out with a read-only deploy key held in the `INSTALLER_DEPLOY_KEY` secret. Pull requests from forks get no secrets, so they skip this job with a notice.

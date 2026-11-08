@@ -1,0 +1,81 @@
+name: Installer systemd test
+
+# Deploys this branch exactly the way production does, with the installer's own
+# sidecar setup from socfortress/INSTALLER-WAZUH-MASTER. Then it checks the result
+# end to end on real systemd: unit, key delivery, file modes, 401/200/400/404
+# answers, re-run idempotency, and that the key never reaches a log. The harness
+# lives in the installer repo (tests/systemd/), so it is the same test the
+# installer runs.
+#
+# The installer repo is private. It is checked out with a read-only deploy key,
+# the INSTALLER_DEPLOY_KEY secret. GitHub does not give secrets to pull requests
+# from forks, so on those the job reports a notice and skips.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  # Only superseded PR runs are cancelled; pushes to main and manual runs always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  sidecar:
+    name: ${{ matrix.base }} (${{ matrix.scenario }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Ubuntu 22.04 has systemd 249: LoadCredential, but no %d specifier.
+          - base: ubuntu:22.04
+            scenario: credentials
+          # The pre-247 path (key file read directly), forced on 249.
+          - base: ubuntu:22.04
+            scenario: key-file
+          # Mounts left private, as in a container: the installer must notice the
+          # missing key (503) and switch to key-file mode by itself.
+          - base: ubuntu:22.04
+            scenario: auto-fallback
+          - base: ubuntu:24.04
+            scenario: credentials
+          - base: debian:12
+            scenario: credentials
+    steps:
+      - name: Check access to the installer repo
+        id: access
+        env:
+          DEPLOY_KEY: ${{ secrets.INSTALLER_DEPLOY_KEY }}
+        run: |
+          if [ -n "$DEPLOY_KEY" ]; then
+            echo "ok=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "::notice::INSTALLER_DEPLOY_KEY is not available (pull request from a fork?): skipping the installer systemd test"
+            echo "ok=false" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out the installer (read-only deploy key)
+        if: steps.access.outputs.ok == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: socfortress/INSTALLER-WAZUH-MASTER
+          ssh-key: ${{ secrets.INSTALLER_DEPLOY_KEY }}
+          persist-credentials: false
+          path: installer
+
+      # The harness clones WAZUH-UTILS by branch: the pull request's own branch,
+      # or the pushed branch.
+      - name: Deploy this branch with the installer and check it
+        if: steps.access.outputs.ok == 'true'
+        env:
+          SCENARIO: ${{ matrix.scenario }}
+          BASE_IMAGE: ${{ matrix.base }}
+          WAZUH_UTILS_REF: ${{ github.head_ref || github.ref_name }}
+        run: installer/tests/systemd/run.sh "$BASE_IMAGE"

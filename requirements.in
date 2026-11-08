@@ -1,7 +1,8 @@
 aiofiles
+defusedxml
 fastapi
-uvicorn
 loguru
+python-multipart
 regex
 requests
-python-multipart
+uvicorn
